@@ -1,0 +1,39 @@
+
+An unexpected exception has been detected in native code outside the VM.
+Unexpected Signal : EXCEPTION_ACCESS_VIOLATION occurred at PC=0x6D060A93
+Function=[Unknown.]
+Library=(N/A)
+
+NOTE: We are unable to locate the function name symbol for the error
+      just occurred. Please refer to release documentation for possible
+      reason and solutions.
+
+
+Current Java thread:
+	at sun.awt.windows.Win32Renderer.doFillRect(Native Method)
+	at sun.awt.windows.Win32Renderer.fillRect(Unknown Source)
+	at sun.java2d.SunGraphics2D.fillRect(Unknown Source)
+	at sun.java2d.SunGraphics2D.clearRect(Unknown Source)
+	at sun.awt.RepaintArea.paint(Unknown Source)
+	at sun.awt.windows.WComponentPeer.handleEvent(Unknown Source)
+	at java.awt.Component.dispatchEventImpl(Unknown Source)
+	at java.awt.Container.dispatchEventImpl(Unknown Source)
+	at java.awt.Window.dispatchEventImpl(Unknown Source)
+	at java.awt.Component.dispatchEvent(Unknown Source)
+	at java.awt.EventQueue.dispatchEvent(Unknown Source)
+	at java.awt.EventDispatchThread.pumpOneEventForHierarchy(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEventsForHierarchy(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEvents(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEvents(Unknown Source)
+	at java.awt.EventDispatchThread.run(Unknown Source)
+
+Dynamic libraries:
+0x742C0000 - 0x742DF000 	C:\WINDOWS\SYSTEM\IMAGEHLP.DLL
+
+Local Time = Fri Mar 14 18:02:14 2003
+Elapsed Time = 110
+#
+# The exception above was detected in native code outside the VM
+#
+# Java VM: Java HotSpot(TM) Client VM (1.4.1_01-b01 mixed mode)
+#

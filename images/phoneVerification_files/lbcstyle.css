@@ -1,0 +1,213 @@
+body, td, th, div, table, p, span, li {
+  font-family: arial, verdana, helvetica, lucida, sans-serif;
+}
+body {
+  color: black;
+  background-color: white;
+  margin-top: 2px;
+}
+body, td, th { font-size: 83%; }
+body, td, th { font-size: 83%; }
+h1, h2, h3, h4, h5, h6 {
+  font-family: arial, helvetica, verdana, lucida, sans-serif;
+}
+h3 {
+  padding: 2px;
+  margin: 2px;
+}
+h4 {
+  margin-bottom: 2px;
+}
+form {
+  margin: 0px;
+  padding: 0px;
+}
+a:link {
+  color: #0000cc;
+}
+a:visited {
+  color: #551a8b;
+}
+a:active {
+  color: #ff0000;
+}
+div.errorbox-bad {
+  border: 2px solid #990000;
+  padding: 2px;
+}
+td.errorbox-bad {
+  border: 2px solid #990000;
+  padding: 2px;
+}
+div.errorheader {
+  color: #990000;
+  font-weight: bold;
+}
+div.errormsg {
+  color: #990000;
+}
+font.errormsg {
+  color: #990000;
+}
+
+table table.layout, table table.layout td, table table.layout tr {
+  border-left-width: 0px;
+  border-right-width: 0px;
+  border-top-width: 0px;
+  border-bottom-width: 0px;
+}
+.buttonbar {
+  font-size:80%;
+}
+
+div.roundedCornerLeft {
+  height: 4px;
+  background:  url(images/ul.gif) no-repeat top left;
+}
+
+div.roundedCornerRight {
+  height: 4px;
+  background:  url(images/ur.gif) no-repeat top right;
+}
+
+/* Use if need to align content with a rounded corner */
+div.roundedCornerLeftSpacer, div.roundedCornerRightSpacer {
+  height: 4px;
+  width: 4px;
+}
+
+/* -------------------------------------------------------------------------*/
+
+h4.pageHead {
+  font-size:130%;
+  margin: 18px 0 12px 0;
+}
+
+.wizSelected {
+	font-weight:bold;
+	color: #3366CC;
+	font-size: 95%;
+}
+
+.wizFuture {
+	font-weight:normal;
+	color: #999999;
+	font-size: 95%;
+}
+
+a.wizPast {
+	font-weight:normal;
+	color: #7777CC;
+	font-size: 95%;
+}
+
+a.wizPast:visited {
+	color: #7777CC;
+}
+
+.wizRArrow {
+	margin: 0 7px 0 8px;
+}
+
+.wizDArrow {
+	margin: 0 0 2px 0;
+}
+
+.footer {
+  color: #666666;
+}
+
+td.formContent {
+  width:67%;
+  vertical-align:top;
+}
+
+#previewTitle {
+	font-size:110%;
+	font-weight:bold;
+	color: #000000;
+	margin: 0 0 20px 0;
+}
+
+#previewListing {
+}
+
+#previewListingName {
+	font-size:135%;
+	color: #000000;
+	margin: 0 0 0px 0;
+}
+
+#previewListingAddress {
+	font-size:100%;
+	color: #000000;
+	margin: 0 0 0 0;
+}
+
+#previewListingURL {
+	font-size:100%;
+	color: #008000;
+	margin: 0 0 10px 0;
+}
+
+.textIntro {
+	color: #000000;
+	font-size: 100%;
+	margin: 0 20px 15px 0;
+	max-width:550px;
+}
+
+.formLabel {
+	color: #666666;
+	font-size: 90%;
+	margin: 10px 0 2px 0;
+}
+
+.addr_label_col {
+	color: #666666;
+	font-size: 75%;
+	margin: 10px 0 2px 0;
+}
+
+.addr_input_col {
+  width: 250px;
+}
+
+.formSelect {
+	color: #000000;
+	font-size: 100%;
+	margin: 0 2px 0 0;
+}
+
+.categorySize {
+  width:300;
+  color: #000000;
+  font-size: 100%;
+  margin: 0 2px 0 0;
+}
+
+.formButton {
+}
+
+.formPrimaryButton {
+	font-weight:bold;
+}
+
+.bottombar {
+	border:1px solid #C6DBFF;
+	background-color:#C6DBFF;
+	padding:3px;
+}
+
+.required {
+	color: #990000;
+}
+
+textarea:focus, input:focus {
+  background-color: #ffffee;
+}
+
+.tip {
+	font-size:80%;
+	color: #999999;
+}

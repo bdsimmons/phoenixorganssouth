@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SWiSHvideo version="2.0" fileVersion="1.0" build="2005.12.04"
+ originalFolder="C:\Documents and Settings\David\My Documents\My Videos\FlashMovies\FCPC"
+>
+	<video
+		file="..\..\FCPC_PD364.wmv"
+		bitrate="104000"
+		quality="80"
+		keyInterval="10"
+		deinterlace="0"
+		deepmotiondetection="0"
+		outputFps="15.0"
+		xResize="100%"
+		yResize="100%"
+		crop="0,0,0,0"
+	/>
+	<audio
+		alt=""
+		outputFlag="1"
+		fadeOutTime="0"
+		frequency="11025"
+		mono="0"
+		compression="1"
+		param="24 (MPEG Layer-3 Codec )"
+		saveTo=""
+	/>
+	<output
+		file=".\FCPC_PD364.swf"
+		format="0"
+		borderWidth="1"
+		bgColor="0"
+		stop="3"
+		url=""
+		target=""
+		html="1"
+		events="0"
+		controls="Ultra Minimalist"
+	/>
+	<variables>
+		<var name="umTrackColor" value="FFFFFF" type="2"/>
+		<var name="umSlideColor" value="CCCCCC" type="2"/>
+		<var name="umShadeAlpa" value="60" type="2"/>
+		<var name="umRollColor" value="E8E8E8" type="2"/>
+		<var name="umPressColor" value="D4D4D4" type="2"/>
+		<var name="umLoadColor" value="DDDDDD" type="2"/>
+		<var name="umInfoBar" value="on" type="2"/>
+		<var name="umIconColor" value="000000" type="2"/>
+		<var name="umButtonColor" value="FFFFFF" type="2"/>
+		<var name="umBorderColor" value="000000" type="2"/>
+		<var name="svChapterAlpha" value="70" type="2"/>
+		<var name="svChapterMenu" value="off" type="2"/>
+		<var name="svFlashVersion" value="6" type="2"/>
+		<var name="svDetectFlash" value="on" type="2"/>
+		<var name="svBufferTime" value="5" type="2"/>
+		<var name="svBuffer" value="on" type="2"/>
+		<var name="svBufferText" value="Buffering ... " type="2"/>
+		<var name="svSetupText" value="Initializing Video" type="2"/>
+		<var name="svTitle" value="FCPC PD364" type="1"/>
+	</variables>
+	<overlay
+		file="..\..\..\BUSINESS\NewLogos\logo_bw_sm_trans.gif"
+		active="1"
+		valign="2"
+		halign="0"
+	/>
+	<events>
+	</events>
+</SWiSHvideo>

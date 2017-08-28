@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SwiftMP3 version="1.6" fileVersion="1.0" build="2007.06.21">
+	<publish
+		folder="C:\Documents and Settings\David\My Documents\WEBSITES\DLS-CO\FLASH_Players\WW_organ"
+		fps="30"
+		truncate="30"
+		publishFlags="115"
+		format="swf"
+		player="Player010\Black"
+	/>
+	<mp3list>
+		<mp3 file="C:\Documents and Settings\David\My Documents\My Music\StarsnStripes.mp3"/>
+	</mp3list>
+</SwiftMP3>

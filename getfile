@@ -1,0 +1,209 @@
+#!/usr/bin/perl
+
+$gunzip = "/bin/gunzip";
+$GLIMPSE_LOC = "/home/organist/qualityorgans-www/glimpse-4.1-bin-Linux-2.0.30-i486/bin/glimpse";
+$GREP_LOC = $GLIMPSE_LOC;
+# ------------------- added - j.holler 97/10/06
+$WEBGLIMPSE_HOME = "/home/organist/qualityorgans-www";
+
+##############################################
+#                                            #
+# no configuration is needed below this line #
+#                                            #
+##############################################
+
+# added - j.holler 97/10/06
+$WEBGLIMPSE_LIB = "$WEBGLIMPSE_HOME/lib";
+# site-specific configuration file
+$wgConfPath = "$WEBGLIMPSE_HOME/.wgsiteconf";
+#---------------------------------
+# make my libraries more important
+unshift(@INC, "$WEBGLIMPSE_LIB");
+require "config.pl";
+#---------------------------------
+
+print "Content-type: text/html\n\n";
+
+$query = $ENV{'QUERY_STRING'};
+
+#  Strip the variables out from the query string,
+#  and assign them into variables, prefixed by 'QS_'
+
+# Replaced eval with $$varname= code as per Jim Ellis suggestion. --GB 7/24/97
+# (Security reasons - we don't want to call an eval with anything user-supplied)
+@qvars = split( /\&/, $query );
+foreach (@qvars) {
+   split(/=/);
+   $fname = $_[0];
+   $fvalue = $_[1];
+   $fvalue =~ s/\'//g;
+   $varname = "QS_$fname";
+   $$varname = $fvalue if ( $fname =~ /^[a-z_A-Z]\w*$/ );
+#   $cmd = "\$QS_$fname = '$fvalue';" ;
+#    print ">>>",$cmd,"\n";
+#   $cmd = eval $cmd if ( $fname =~ /^[a-z_A-Z]\w*$/ );
+}
+
+$indexdir = $ARGV[0];
+
+# Added link argument for BASE HREF tag. --GB 11/1/97
+$link = $QS_link;
+
+$file = $QS_file;
+$path = $QS_file;
+if ($path =~ m#/\.\./#) { &err_noaccess;}
+$line = $QS_line;
+
+# make sure the indexdir exists, and is a valid archive dir
+if ($indexdir =~ m/^\s*\&/) {
+	# Don't let anybody open specific descriptors.
+	&err_file ($indexdir);
+	die ("UNREACHABLE REACHED");
+}
+if (!(-d $indexdir)){
+	&err_noindexdir;
+}
+if (!(-e "$indexdir/archive.cfg")){
+	&err_badindexdir;
+}
+
+# get the url for the file from the config
+open(CFG, "<$indexdir/archive.cfg") || &err_badconfig;
+$input = <CFG>;
+($title,$url,$subindex) = split("\t", $input);
+close(CFG);
+
+# print "indexdir = $indexdir<br>file = $file<br>line = $line<br>query=$query<br>\n";
+
+# you may comment this check if you want to decrease security
+#  for a shorter execution
+# Made the security check more secure -- GB 7/24/97
+
+# This original code just checks that glimpse can execute and look for the
+# filename in .glimpse_filenames - it doesn't actually check that the file is there!
+# (The return code from system is 0 if the command executed without error, whatever the result) --G
+
+#  if (system("$GREP_LOC -k $file $indexdir/.glimpse_filenames >/dev/null".
+#	 " 2>/dev/null") != 0) {
+#     &err_noaccess;
+#  }
+
+# The following code checks if the filename is in .glimpse_filenames
+$found = 0;
+($lookfor = $file) =~ s/(\W)/\\\1/g;
+
+open (F, "<$indexdir/.glimpse_filenames") || &err_noaccess;
+<F>;
+while (($_ = <F>) && !($found)) {
+	$found = (/^${lookfor}\s/ || /^${lookfor}$/);
+}		
+close(F);
+if (! $found) {
+	&err_noaccess;
+}
+# End of security check.
+
+
+if (($path =~ m/^\s*-\s*$/) ||
+    ($path =~ m/^\s*\&/)) {
+	# Don't let anybody open stdin, or specific descriptors.
+	&err_file ($path);
+	die ("UNREACHABLE REACHED");
+}
+$effname = "<$path";
+$name = $path;
+if ($path =~ /^(.*)\.Z$/) {
+	$effname = "exec $gunzip < $path|";
+	$name = $1;
+} elsif ($path =~ /^(.*)\.gz$/) {
+	$effname = "exec $gunzip < $path|";
+	$name = $1;
+} elsif ($path =~ /^(.*)\.zip$/) {
+	$effname = "exec $gunzip < $path|";
+	$name = $1;
+}
+
+if (! -f $path) {
+	&err_file($path);
+	die ("UNREACHABLE REACHED");
+}
+if (!open(INPUT,$effname)) {
+	&err_file($path);
+	die ("UNREACHABLE REACHED");
+}
+
+$HTML = 1;
+# Allow .html or .htm --GB 11/1/97
+if ($name !~ /\.s?htm[l]*?$/) {
+	print "<PRE>\n";
+	$HTML = 0;
+}
+
+# Use the $link argument for baseurl --GB 11/1/97
+#$baseurl = $url.$file;
+$baseurl = $link;
+
+
+LINE:
+while (<INPUT>) {
+	if ($HTML) {
+		$baseurl &&
+			s#<title>#<BASE HREF=\"$baseurl\">$&#i;
+		s|\&lt;([\w\$][-\w.\$]*\@\w[-\w.]+)&gt;|\<a href="/cgi-bin/artbyid?$1"\>\&lt;$1\&gt;\</a\>|g;
+	} else {
+		s|\&|\&amp;|g;
+		s|\<|\&lt;|g;
+		s|\>|\&gt;|g;
+		s|\&lt;([\w\$][-\w.\$]*\@\w[-\w.]+)&gt;|\<a href="/cgi-bin/artbyid?$1"\>\&lt;$1\&gt;\</a\>|g;
+		# s|\bgopher://([^ ><'")(]*[\w\/])\b|\<a href="$&">$&\</a>|g;
+		# s|\bhttp://[-.\w?/+&\%:]+[.\w/]\b|\<a href="$&">$&\</a>|g;
+		# s|\bftp://[-.\w/+]+[.\w/]\b|\<a href="$&"\>$&\</a\>|g;
+		s#\bgopher://[^\s><'")(]+[\w/]#\<a href="$&">$&\</a>#g;
+		s#\bhttp://[^\s><'")(]+[\w/]#\<a href="$&">$&\</a>#g;
+		s#\bftp://[^\s><'")(]+[\w/]#\<a href="$&">$&\</a>#g;
+	}
+	if ($line && $. == $line) {
+		print "<A NAME=\"mfs\"><B>";
+	}
+	if ($line && $. == $line+1) {
+		print " </B></A>";
+	}
+
+	print;
+}
+if ($HTML == 0) {
+	print "</PRE>\n";
+}
+close(INPUT);
+
+sub err_badconfig {
+	print "<TITLE>Error</TITLE>\n";
+	print "<H1>Error with \"$indexdir\"</H1>\n";
+	print "Cannot open configuration file for archive directory.\n";
+	exit;
+}
+sub err_noindexdir {
+	print "<TITLE>Error</TITLE>\n";
+	print "<H1>Error with \"$indexdir\"</H1>\n";
+	print "Archive directory does not exist.\n";
+	exit;
+}
+sub err_badindexdir {
+	print "<TITLE>Error</TITLE>\n";
+	print "<H1>Error with \"$indexdir\"</H1>\n";
+	print "Directory is not an archive directory.\n";
+	exit;
+}
+sub err_noaccess {
+	print "<TITLE>Access denied</TITLE>\n";
+	print "<H1>Access to \"$path\" denied</H1>\n";
+	print "You don't have permission to get file \"$path\"\n";
+	print "from this site.\n";
+	exit;
+}
+sub err_file {
+	local ($path) = @_;
+	print "<TITLE>Cannot read file \"$path\"</TITLE>\n";
+	print "<H1>Cannot read file \"$path\": $!</H1>\n";
+	exit;
+}

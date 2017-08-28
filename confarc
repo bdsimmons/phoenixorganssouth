@@ -1,0 +1,672 @@
+#!/usr/bin/perl
+#
+# Archive maker for webglimpse
+#
+# 12/25/97  
+# Revision 2.01  added command-line arguments
+#		 more explanations for user
+#		 subdirectories allowed in urllist
+#
+#
+#  1/17/98	 parseable command-line arguments
+#
+#	usage:	confarc [options]
+#
+#	See subroutine "usage" below for full list of options
+#
+#  Default behavior if -i and -q switches found:
+#	The dir/url is assumed to be both 
+# 	   the archive directory and the directory to index
+#	If passed as a directory, index by subdirectory
+#	If passed as a URL, index by traversing links
+#
+#	With -q switch, user is not prompted for any information. Confarc exits on errors.
+#	This will be useful when running confarc from a web interface.
+#
+###############################################################################
+
+# All of the following variables will be overwritten by wginstall
+$WEBGLIMPSE_HOME = "/home/organist/qualityorgans-www";
+$PERL = "/usr/bin/perl";
+$GLIMPSE_LOC = "/home/organist/qualityorgans-www/glimpse-4.1-bin-Linux-2.0.30-i486/bin/glimpse";
+$GLIMPSEIDX_LOC = "/home/organist/qualityorgans-www/glimpse-4.1-bin-Linux-2.0.30-i486/bin/glimpseindex";
+$CGIBIN = "cgi-bin";
+# End overwritten variables
+
+##############################################
+#                                            #
+# no configuration is needed below this line #
+#                                            #
+##############################################
+# version
+$VERSION="2.0";
+
+# confarc revision
+$REVISION="2.01";
+
+# force flushing of buffer on system calls
+$| = 1;
+
+# Set null defaults
+$nu_indexdir = '';
+$nu_type = '';
+$nu_vhost = '';
+$nu_listarchs = '';
+$nu_numhops = 0;
+$nu_neighhops = 0;
+$nu_explicit = '';
+$nu_pages = 0;
+$nu_remote = 0;
+$nu_quiet = 0;
+
+# parse command options
+while ( $_ = $ARGV[0]) {
+        shift;
+        last if /^--$/;
+        if    (/^-i/)           { $nu_indexdir = &get_option("-indexdir");  }
+        elsif (/^-t/)           { $nu_type  = &get_option("-type");    }
+	elsif (/^-n/)		{ $nu_numhops = &get_option("-numhops");  }
+	elsif (/^-g/)		{ $nu_neighhops = &get_option("-ghhops"); }
+	elsif (/^-e/)		{ $nu_explicit = &get_option("-explicit_only"); }
+	elsif (/^-p/)		{ $nu_pages = &get_option("-pages"); }
+	elsif (/^-r/)		{ $nu_remote = &get_option("-remote"); }
+        elsif (/^-v/)           { $nu_vhost  = &get_option("-vhost");    }
+	elsif (/^-q/)		{ $nu_quiet  = 1; }
+        elsif (/^-l/)           { $nu_list  = &get_option("-list");    }
+	elsif (/^-T/)		{ $nu_title = &get_option("-Title"); }
+	elsif (/^-b/)		{ $nu_addboxes = 1; }
+        elsif (/^-[\?hH]/)      { &usage; }
+        else                    { &usage("unknown argument: $_");  }
+}
+
+
+# If we got -q and -i options, we will guess the rest. 
+
+# Otherwise, we will be prompting user for everything, so introduce ourselves
+if ((!$nu_quiet) || ($nu_indexdir eq '')) {
+	# print initial message
+	print "Running WebGlimpse $VERSION archive configuration.\n";
+	print "For detailed instructions see http://glimpse.cs.arizona.edu/webglimpse/confarc.html.\n\n";
+}
+
+
+# make the formats okay
+chomp $PERL;
+chomp $GLIMPSE_LOC;
+chomp $GLIMPSEIDX_LOC;
+
+# distribution files directory
+$WEBGLIMPSE_DIST = "$WEBGLIMPSE_HOME/dist";
+
+# lib directory
+$WEBGLIMPSE_LIB = "$WEBGLIMPSE_HOME/lib";
+
+# robot that retrieves files
+$GHROBOT="$WEBGLIMPSE_HOME/makenh";
+
+# to make the cron (reindexing) script
+$MAKECRON = "$WEBGLIMPSE_HOME/makecron";
+
+# to add the search box
+$ADDSEARCH = "$WEBGLIMPSE_HOME/addsearch";
+
+# name of cron file
+$CRONFILE = "wgreindex";
+
+$MADENH = ".wg_madenh";
+
+# removal script
+$REMOVE = "rmarc";
+
+# Glimpse indexing options
+#$GLIMPSEIDX_OPTIONS = "-o -t"; Added -h -X -U -f -C --> bgopal oct/6/96
+$GLIMPSEIDX_OPTIONS = "-o -t -h -X -U -f -C";
+
+#---------------------------------
+# make my libraries more important
+unshift(@INC, "$WEBGLIMPSE_LIB");
+require "webgutils.pl";
+require "config.pl";
+require "wgserver.pl";
+require "siteconf.pl";
+
+######## defaults ########
+$title="WebGlimpse Search";
+$url="http://www.your.server.name.here/path/to/directory";
+$traverse_type = 0;
+$explicit_only = 1;
+$numhops = 2;
+$nhhops = 1;
+$local_limit = 99999;
+$remote_limit = 250;
+$addboxes = 0;
+$usemaxmem = 0;
+$vhost = "";
+@urllist = ();
+
+# pre-set localscope
+$localscope=1;
+
+# permission information
+$umaskval = umask(0022);
+# for executables
+$xmodval = 0755;
+
+# We use document root to set reasonable defaults later
+$docroot = "";
+$relpath = "";
+
+# Check for hostname argument (overrides existing setting)
+if ($nu_vhost ne '') {
+	$vhost = $nu_vhost;
+
+	# site-specific configuration file - may need to create.
+	$wgConfPath = "$WEBGLIMPSE_HOME/$vhost.wgsiteconf";
+	$wgDefault = "$WEBGLIMPSE_HOME/.wgsiteconf";
+	$httpdconf = '';
+
+	# We need DocumentRoot, also may need other settings.
+
+	# Create config file if does not exist
+	if (! ( -e $wgConfPath)) {
+		&make_wgconf($wgDefault, $wgConfPath, $vhost);
+	}
+
+	$docroot = &siteconf::ReadConf($vhost);
+}
+
+
+# if not provided on the command line,
+# prompt user for directory to make archive in
+if ($nu_indexdir ne '') {
+	# If the user passed a URL, convert to directory path
+	if ($nu_indexdir =~ /^http/) {
+
+		# We need to know something about docroot to convert correctly
+		# For now assume is default domain.
+		if ($docroot eq '') {
+#TODO: Parse the domain name out of the URL and try using that. Need to check if default or get rid of "default" setting
+#			$nu_indexdir =~ /^http[^:]*:\/\/([^\/]*)/;
+#			$docroot = &siteconf::ReadConf($1);
+			$docroot = &siteconf::ReadConf('');
+		}
+
+		$indexdir = &siteconf::LocalUrl2File($nu_indexdir);
+
+		if (! -d $indexdir) {
+			$indexdir =~ s/(.*)\/[^\/]*$/\1/;
+		}
+	} else {
+		$indexdir = $nu_indexdir;
+	}
+} else {
+	$indexdir = &prompt("Directory where the index and other WebGlimpse generated files will reside", `pwd`);
+}
+
+chomp $indexdir;
+# Make sure what we got is a directory
+while (! (-d "$indexdir")) {
+	if ($nu_quiet) { print "Invalid directory entered\n"; exit 2; }
+	print "$indexdir is not a valid directory\n";
+	$indexdir = &prompt("DIRECTORY where the index and other WebGlimpse generated files will reside", '');	
+	chomp $indexdir;
+}
+
+$found_archive=0;
+# if config exists, read it in, and use these for a default
+if (&TestConfig($indexdir)!=0){
+   	$found_archive=1;
+   	print "\nFound archive.  Reading in previous settings for update.\n";
+
+   	($title, $urlpath, $traverse_type, $explicit_only, $numhops,
+    	   $nhhops, $local_limit, $remote_limit, $addboxes, $vhost, $usemaxmem, @urllist) = ReadConfig($indexdir);
+}
+
+# If we had a virtual host on the command line, revert to that.
+# We already read the config file above (we had to do it BEFORE finding the index directory)
+if ($nu_vhost ne '') {
+	$vhost = $nu_vhost;
+} 
+
+# If we didn't have a virtual host on the command line, we need to 
+# parse the config file now, whether or not we have a unique virtual host
+else {
+	$docroot = &siteconf::ReadConf($vhost);
+}
+
+
+if ($docroot eq '') {
+	if ($nu_quiet) {
+		print "ERROR: Unable to find DocumentRoot for this server.  Check .wgsiteconf file\n";
+		exit 5;
+	}
+	$docroot = &prompt("What is the DocumentRoot for this $vhost web server?", "");
+}
+
+
+if ($nu_title ne '') {
+	$title = $nu_title;
+} elsif (! $nu_quiet) {
+	$title =  &prompt("Archive title ",$title);
+}
+
+# Make reasonable default for url, actually we don't need it at all.
+# Right now we keep it in the file for compatibility with older versions.
+if (($docroot ne "") && ($vhost ne "") && ($indexdir =~ /^$docroot/)) {
+	$url = substr($indexdir, length($docroot));
+	if ($url !~ /^\//) {
+		$url = "/".$url;
+	}
+	$url = "http://".$siteconf::Server.$url;
+}
+
+
+# We don't need this except for Local Copy Pointers, eliminated in version 1.6.
+# I found this question confusing with the start url list.  
+# Got rid of it - 1/7/98 --GB
+# prompt user for information
+#$url =  &prompt("A URL path to get to the directory listed above",$url);
+# (Note, jump-to-line works differently because the file is output on the fly; only local copy pointers used a link)
+# if the url has a trailing '/', get rid of it
+#if($url=~/\/$/) {
+#   chop $url;
+#}
+
+# If we got a valid command-line argument, use it 
+if ($nu_type =~ /^[tdTDrR]/) {
+	$traverse_t = $nu_type;
+} 
+
+# If we are doing this quietly, make an educated guess
+elsif ($nu_quiet) {
+	if ($nu_indexdir =~ /^http/i) {
+		$traverse_t = 'T';
+	} else {
+		$traverse_t = 'D';
+	}
+}
+
+# Otherwise, ask the user
+else {
+	$traverse_t = &prompt("Index by Directory, or Traverse URLs. Press ? for more information. (D/T)", (($traverse_type == 2) ? "D" : "T"));
+	while ($traverse_t !~ /^[tdTD]/) {
+		print "Index by Directory is the traditional way most local search engines work. \n";
+		print "You specify one or more directories, and all the files contained in those directories\n";
+		print "are indexed.  Files in subdirectories will be indexed too.\n\n";
+	
+		print "Traverse URLs is similar to the method used by many search engines on the web.\n";
+		print "You specify one or more starting pages, and all the pages linked to from those pages\n";
+		print "will be indexed.  You can also specify the number of \"hops\" to take from your starting page\n";
+		print "and whether to index only pages on this server or also pages on remote servers that your pages link to.\n\n";
+
+		$traverse_t = &prompt("Now enter D to index by Directory, or T to Traverse URLs (D/t)",  (($traverse_type == 0) ? "D" : "T"));
+	}
+}
+
+
+# Get other settings based on the type of traversal we're doing
+if ($traverse_t =~ /^[dD]/) { 
+	$traverse_type=2;
+	print "Indexing by Directory.\n";
+	$numhops=0;
+	$nhhops=0;
+	$addboxes=0;
+} else {
+	if ($traverse_t =~ /^[rR]/) {
+		$remote_q = 'Y';
+	} elsif ($nu_quiet) {
+		$remote_q = 'N';
+	} else {
+		$remote_q = &prompt("Do you allow traversal of remote pages? (Y/N)", (($traverse_type == 0) ? "N" : "Y"));
+		while ($remote_q !~ /^[ynYN]/) {
+			print "Answering Y to this question will allow webglimpse to gather pages\n";
+			print "From remote servers elsewhere on the Internet\n\n";
+			print "Answering N to this question will only allow webglimpse to index pages\n";
+			print "that are local on your current server.  Note, even links on the same machine\n";
+			print "to different virtual host addresses may be considered remote.\n\n";
+			$remote_q = &prompt("Do you allow traversal of remote pages? (Y/N)", (($traverse_type == 0) ? "N" : "Y"));
+		}
+	}
+	
+	if ($remote_q =~ /^[yY]/) { $traverse_type = 1;}
+	else {$traverse_type=0;}
+
+   	if($traverse_type==1){
+	
+		# we need to know if it's explicit only
+		if ($nu_explicit =~ /^[ynYN]/) {
+			$explicit_only_t = $nu_explicit;
+		} elsif ($nu_quiet) {
+			$explicit_only_t = 'Y';
+		} else {
+			$explicit_only_t = &prompt("Follow only *explicitly* defined remote links? (Y/N)", (($explicit_only == 1) ? "Y" : "N"));
+			while ($explicit_only_t !~ /^[ynYN]/) {
+				print "Answering Y to this question will only allow the server to \n";
+				print "traverse remote pages that are linked to directly from local pages on your server.\n";
+				print "It will NOT allow webglimpse to follow links from one remote page to another remote page.\n\n";
+				print "Answering N to this question will ALLOW webglimpse to follow links from remote pages\n";
+				print "to other remote pages.  The final list of pages indexed will be determined by other sites in addition to your own.\n\n";
+				$explicit_only_t = &prompt("Follow only *explicitly* defined remote links? (Y/N)", (($explicit_only == 1) ? "Y" : "N"));
+			}
+			$explicit_only  = ($explicit_only_t =~ /^[yY]/);
+		}
+	}
+
+
+	if ($nu_numhops > 0) {
+		$numhops = $nu_numhops;
+	} elsif (! $nu_quiet) {
+		$oldnumhops=$numhops;
+   		$numhops=0;
+		while($numhops<=0){
+      			$numhops = &prompt("Number of allowed hops from each root URL",$oldnumhops);
+			if ($numhops eq '?') {
+				print "For example, entering 1  will archive only pages that your starting URL links to directly\n";
+				print "Entering 2 will archive these pages, AND the pages that THEY link to.\n";
+				print "If you are allowing non-explicit remote links, you probably want to enter a number of 3 or less\n\n";
+			}
+		}
+   	}
+
+	if ($nu_pages > 0) {
+		$local_limit = $nu_pages;
+	} elsif (! $nu_quiet) {
+		$local_limit = &prompt("maximum number of local pages",$local_limit);
+		while ($local_limit <= 0) {
+			print "Please enter a number greater than zero.\n";
+		   	$local_limit = &prompt("maximum number of local pages",$local_limit);
+		}
+	}
+
+   	if ($traverse_type == 1) {
+
+		if ($nu_remote > 0) {
+			$remote_limit = $nu_remote;
+		} elsif (! $nu_quiet ) {
+			$remote_limit = &prompt("maximum number of remote pages",$remote_limit);
+			while ($remote_limit <= 0) {
+				print "Please enter a number greater than zero.\n";
+	   			$remote_limit = &prompt("maximum number of local pages",$local_limit);
+			}
+		}
+  	}
+   	# prompt for the number of hops that the neighborhoods will consist of
+   	# nhhops must be greater than zero
+
+	if ($nu_neighhops > 0) {
+		$nhhops = $nu_neighhops;
+	} elsif (! $nu_quiet) {
+	   	$oldnhhops=$nhhops;
+   		$nhhops=0;
+	   	while($nhhops<=0){
+   			$nhhops = &prompt("Define a neighborhood by the following number of hops from each page",$oldnhhops);
+			if ($nhhops eq '?') {
+				print "Each local indexed page is considered to have a 'neighborhood' of the pages\n";
+				print "linked to within a certain number of 'hops' from that page\n";
+				print "If you enter 1, then the neighborhood of each page is exactly those pages\n";
+				print "linked to from that page.\n\n";
+			}
+		}
+	}
+
+	if ($nu_addboxes) {
+		$addboxes = 'Y';
+	} elsif ($nu_quiet) {
+		$addboxes = 'N';
+	} else {
+		print "**NOTE** Saying 'yes' to the following question will alter all HTML\n";
+		print "         pages in the indexed region.  It will add a neighborhood \n";
+		print "		search box to the bottom of each page.\n";
+		print "  	You can safely remove all the boxes with  rmarc  \n";
+
+		$addboxes = &read_bool("Add search boxes to pages? (Y/N) ", 'N');
+	}
+}
+
+
+# generate the comment
+if ($found_archive) {
+	$topcomment = '';
+} else {
+	$topcomment = "# archive.cfg : Archive Configuration file for Webglimpse\n
+#
+# title String		= Title of search as placed in wgindex.html
+#
+# urlpath http://domain.com/path  	= URL to archive directory
+#
+# traverse_type n	= 0 for Traversal of local links only
+#			= 1 for Traversal of remote and local links
+#			= 2 for Subdirectory-based archive
+#
+# explicit_only n	= 0 for traversal of any link, explicit or non-explicit
+#			= 1 for traversal of only explicit links to remote sites
+#
+# numhops n		= # of hops to traverse from starting page
+# nhhops n		= # of hops to allow for each neighborhood
+#
+# local_limit n		= maximum # of local pages to index
+# remote_limit n	= maximum # of remote pages to index
+#
+# addboxes n		= 0 to NOT add search boxes to all indexed pages
+#			= 1 to add search boxes to all indexed pages
+# vhost Hostname	= name of virtual host to use for this index
+# usemaxmem 0		= 0 to NOT use maximum available memory
+#			= 1 to use maximum memory to speed up indexing
+# urllist Url1,Url2,..	= List of starting URL's or Directories to index
+#	";
+}
+
+
+if ($nu_list ne '') {
+	@urllist = split(/,/,$nu_list);
+} elsif ($nu_quiet) {
+	if (! @urllist) {
+		@urllist = ($indexdir);
+	}
+} else {
+
+	# ask for the starting urls
+	@urllist = &make_wgstart($indexdir, $url, $traverse_type);
+}
+
+
+# save the configuration
+if(&SaveConfig($indexdir, $topcomment,
+		$title,$url,$traverse_type,$explicit_only,$numhops,$nhhops,
+		$local_limit, $remote_limit, $addboxes, $vhost, $usemaxmem, @urllist) == 0){
+	print "Error saving configuration to file!\n";
+	exit 3;
+}
+
+# copy the files from the dist directory
+$mycronfile = "$indexdir/$CRONFILE";
+&copy_files($indexdir);
+
+# construct the cron file
+if (system("$MAKECRON $indexdir $usemaxmem") < 0) {
+	print "ERROR: Unable to create cronfile $mycronfile\n";
+	exit 6;
+}
+
+# touch the .wg_madenh file -- otherwise, the first call to addsearch -r
+# in the cron file will fail
+open(FILE, ">$indexdir/$MADENH");
+close(FILE);
+chmod(0644, "$indexdir/$MADENH");
+
+if (! $nu_quiet) {
+	# Give users instructions for running wgreindex
+	print "Building the configuration files is now completed.\n";
+	print "You can build the actual archive by running $indexdir/wgreindex at any time.\n";
+	print "To re-index regularly, add \n   $indexdir/wgreindex -q   \n to a crontab with the appropriate permissions.\n";
+	print "You can change any of the configuration files later by editing the file archive.cfg at that directory\n";
+	print "\nPlease send us mail at glimpse\@cs.arizona.edu to add your archive to our list.\n";
+	print "\n\n";
+
+
+	# ***TODO: Create archive.html, scripts,e tc.
+	# Tell user about web interface for categorizing archives
+	#print "NOTE: After you build the archive, you can add it to the Master Archive list from the page\n";
+	#print "$url/archive.html\n";
+	#print "and you can search it from the page\n";
+	#print "$url/wgindex.html\n\n";
+
+	# Offer to run it now
+	$doit = &prompt("Would you like to build the archive now? (Y/N)", "Y");
+	if ($doit =~ /^[yY]/) {
+		exec("$indexdir/wgreindex");
+	}
+}
+
+1;
+
+##############################################################################
+## Subroutines
+##############################################################################
+sub get_option {
+        &usage("missing argument for $_[0]") if ($#ARGV==-1) ;
+        $result = $ARGV[0];
+        shift @ARGV;     
+        return $result;
+}
+
+
+sub usage {
+  local($mess) = @_;
+
+  print "confarc: $mess\n\n";
+
+  print <<"_EOF_";
+usage:  confarc [-options ...] 
+
+where options include:                                  Defaults -
+    -indexdir	dir		Index directory          	current dir
+    -type     	D/T/R		D = index by directory		D
+				T = traverse local URLs
+				R = traverse remote & local URLs
+    -Title	title		Title of archive		"Webglimpse Search"
+    -numhops	#		# of hops to traverse		2
+    -ghhops	#		# of hops define a neighborhood	1
+    -explicit	Y/N		Follow only explicit links	Y
+    -pages	#		Max # of local pages to index	99999
+    -remote	#		Max # of remote pages to index	250
+    -vhost	vhost		virtual host 			none 
+    -list     	arc1,arc2... 	list of archive dirs/urls     	indexdir
+    -boxes			Add search boxes to all pages	not defined
+    -quiet			Run without prompting user	not defined
+    
+    -?, -help			Print this message
+
+All options can be abbreviated up to one letter.
+
+Possible exit codes:
+           1 - normal, success
+	   2 - invalid directory
+	   3 - cannot write to file
+	   4 - cannot find httpd config file (quiet mode only)
+	   5 - cannot find DocumentRoot (quiet mode only)
+	   6 - cannot create cronfile
+	   7 - bad arguments (usage)
+_EOF_
+
+ exit 7;
+}
+
+
+sub copy_files{
+	local($indexdir) = @_;
+	local($file);
+
+	# grab the stuff out of the WEBGLIMPSE_DIST directory and 
+	# prepend a '.'
+	# should be .glimpse-eye.jpg, .wgbox.html, .wgfilter-index, .wgfilter-box and .wgindex.html
+	eval{
+		opendir(DIR, $WEBGLIMPSE_DIST);
+	};
+	if(@$){
+		warn "** ERROR **: cannot open directory $WEBGLIMPSE_DIST for reading!";
+		return;
+	}
+
+	while($file = readdir(DIR)){
+		next if ($file=~/^\./);  # skip if it starts with a .
+
+# Copy files even if exist, so we get our new updated versions --GB 1/18/98
+#		if(!-e "$indexdir/.$file"){
+
+		# copy it into $indexdir
+		print "Copying $file into $indexdir/.$file\n";
+		system("cp $WEBGLIMPSE_DIST/$file $indexdir/.$file");
+		chmod(0644, "$indexdir/.$file");
+
+#		}
+
+	}
+	closedir(DIR);
+}
+
+
+##############################################################################
+sub make_wgstart{
+	local($indexdir, $indexurl, $ttype)=@_;
+	local(@startlist, $url, $yn, $entry);
+
+	# make @startlist
+	
+	$entry = '';
+	if ($ttype == 2) {  # Subdirectory-based index
+		print "\n\nNow you will need to enter the full path to the directory(s)\n";
+		print "to be indexed.  It must be accessible from the web.\n";
+	
+		$entry = &prompt("Directory Path: ", $indexdir);
+
+	} else {	  # Traversal-based index
+
+		print "\n\nNow you will need to enter the URL(s) of the file(s) you would\n";
+		print "like to traverse.\n";
+
+		$entry = &prompt("URL: ",$indexurl);
+	}
+	chomp $entry;
+	while($entry ne ''){
+		push(@startlist, $entry);
+		print (($ttype == 2) ? "Next Directory (return to exit): " : "Next URL (return to exit):" );
+		$entry = <STDIN>;
+		chomp $entry;
+	}
+
+	return @startlist;
+}
+
+
+
+sub make_wgconf() {
+	my($wgDefault, $wgConfPath, $vhost) = @_;
+	
+	my($httpdconf);
+
+	# Get httpd config file from .wgsiteconf if possible
+	if (-e $wgDefault) {
+		if (open(FILE, $wgDefault)) {
+			while(<FILE>) {
+			     if (/^HTTPDCONF (\S+)/) {
+				   $httpdconf = $1;		
+			     }
+			}
+			close(FILE);
+		} else { 
+			print "WARNING: Unable to open default .wgsiteconf!  You may need to run wginstall.sh again. \n"; 
+		}
+		
+	}
+	
+	# If we need to, ask user where httpd config file is
+	if ($httpdconf eq '') {
+		if ($nu_quiet) {
+			print "ERROR: Cannot locate httpd config file\n";
+			exit 4;
+		}
+		$httpdconf = &prompt('Full path to HTTP server config file: ','');
+	}
+	wgSiteConfig($httpdconf, $wgConfPath, $vhost);
+}

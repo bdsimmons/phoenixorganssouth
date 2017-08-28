@@ -1,0 +1,5 @@
+<script language="javascript" src="http://www.photodex.com/presenter.js"></script>
+<script>
+	PhotodexObject("ProShow","objectname","tow-boat-web.px",640,480);
+	PresenterControls("objectname",640);
+</script>

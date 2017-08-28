@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PLAYERSETTINGS autostart="yes" playall="yes" loop="yes" shuffle="no"/>
+<PLAYLIST>
+   <FILE src="BeThouButNear.swf" desc="Be Thou But Near - Phoenix PT246" artist="" album="" minutes="2" seconds="28"/>
+   <FILE src="Elegy.swf" desc="Elegy - Phoenix PT246" artist="" album="" minutes="2" seconds="45"/>
+   <FILE src="PanisAngelicus.swf" desc="Panis Angelicus - PT246" artist="" album="" minutes="3" seconds="22"/>
+   <FILE src="PieJesu.swf" desc="Pie Jesu (French Organ) PT246" artist="" album="" minutes="3" seconds="17"/>
+   <FILE src="SheepMaySafely.swf" desc="Sheep May Safely Graze - PT246" artist="" album="" minutes="3" seconds="39"/>
+   <FILE src="StMargaret.swf" desc="Hymn Prelude - St. Margaret - PT246" artist="" album="" minutes="1" seconds="17"/>
+   <FILE src="DaleWoodWhimsy.swf" desc="Whimsy - D. Wood - PT246" artist="" album="" minutes="2" seconds="1"/>
+</PLAYLIST>

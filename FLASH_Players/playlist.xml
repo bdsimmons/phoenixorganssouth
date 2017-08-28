@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PLAYERSETTINGS autostart="no" playall="yes" loop="yes" shuffle="no"/>
+<PLAYLIST>
+   <FILE src="petitprelude.swf" desc="Petit prélude" artist="con anima" album="con anima i Kulladal" minutes="3" seconds="23"/>
+   <FILE src="Classical%20-%20Mozart%20-%20Organ%20Fantasy.swf" desc="Organ Masterpieces - Fantasy i" artist="Various Artists" album="Organ Masterpieces" minutes="11" seconds="24"/>
+   <FILE src="einfeste.swf" desc="Track 01" artist="" album="" minutes="5" seconds="19"/>
+   <FILE src="Virgil%20Fox%20-%20Durufle%20-%20Suite%20for%20Organ,%20Op.%205c%20-%20Toccata.swf" desc="Suite for Organ, Op. 5: 3 of 3: Toccata - Durufle" artist="Virgil Fox" album="Organ Music from France" minutes="7" seconds="0"/>
+</PLAYLIST>
